@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block title %}收藏对比{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+    <a href="/" class="text-blue-600 hover:underline text-sm">&larr; 返回搜索</a>
+</div>
+
+<h1 class="text-xl font-bold text-gray-800 mb-6">收藏商品对比 ({{ items|length }})</h1>
+
+{% if items %}
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    {% for item in items %}
+    <div class="bg-white rounded-lg shadow-sm p-5 relative">
+        <!-- Remove button -->
+        <form action="/favorites/{{ item.product.id }}/delete" method="post" class="absolute top-2 right-2">
+            <button type="submit" class="text-gray-300 hover:text-red-500 text-lg" title="取消收藏">&times;</button>
+        </form>
+
+        <!-- Platform badge -->
+        {% if item.product.platform == 'jd' %}
+        <span class="inline-block text-xs px-1.5 py-0.5 rounded bg-red-100 text-red-700 font-medium mb-2">京东</span>
+        {% elif item.product.platform == 'tb' %}
+        <span class="inline-block text-xs px-1.5 py-0.5 rounded bg-orange-100 text-orange-700 font-medium mb-2">天猫</span>
+        {% endif %}
+
+        <!-- Product info -->
+        <a href="{{ item.product.product_url }}" target="_blank" rel="noopener"
+           class="text-blue-600 hover:underline font-medium text-sm leading-tight line-clamp-2 block mb-2">
+            {{ item.product.name }}
+        </a>
+
+        {% if item.product.price %}
+        <p class="text-red-600 font-bold text-xl mb-1">¥{{ "%.2f"|format(item.product.price) }}</p>
+        {% endif %}
+
+        {% if item.product.shop_name %}
+        <p class="text-xs text-gray-400 mb-3">{{ item.product.shop_name }}</p>
+        {% endif %}
+
+        <!-- Score -->
+        <div class="flex items-center gap-2 mb-2">
+            <span class="text-xs text-gray-500">配料评分:</span>
+            <span class="font-bold {% if item.ingredient_score > 0 %}text-green-600{% elif item.ingredient_score < 0 %}text-red-600{% else %}text-gray-500{% endif %}">
+                {{ item.ingredient_score }}
+            </span>
+        </div>
+
+        <!-- Ingredients -->
+        <div class="border-t pt-2">
+            <div class="flex flex-wrap gap-1">
+                {% for ci in item.classified_ingredients %}
+                <span class="inline-block text-xs px-1.5 py-0.5 rounded
+                    {% if ci.category == 'blacklist' %}bg-red-100 text-red-700
+                    {% elif ci.category == 'whitelist' %}bg-green-100 text-green-700
+                    {% elif ci.category == 'warning' %}bg-yellow-100 text-yellow-700
+                    {% else %}bg-gray-100 text-gray-600{% endif %}
+                " {% if ci.kb_desc %}title="{{ ci.kb_desc }}"{% endif %}>{{ ci.name }}</span>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="bg-white rounded-lg shadow-sm p-12 text-center">
+    <p class="text-gray-400 text-lg mb-2">暂无收藏商品</p>
+    <p class="text-gray-300 text-sm">在搜索结果页点击收藏按钮添加商品</p>
+</div>
+{% endif %}
+{% endblock %}

@@ -100,10 +100,17 @@
                     {% endif %}
                 </div>
 
-                <!-- Shop -->
-                {% if item.product.shop_name %}
-                <p class="text-sm text-gray-500 mb-3">{{ item.product.shop_name }}</p>
-                {% endif %}
+                <!-- Shop + Favorite -->
+                <div class="flex justify-between items-center mb-3">
+                    {% if item.product.shop_name %}
+                    <p class="text-sm text-gray-500">{{ item.product.shop_name }}</p>
+                    {% else %}<span></span>{% endif %}
+                    <form action="/favorites/{{ item.product.id }}" method="post" class="inline">
+                        <button type="submit" class="text-xs text-gray-400 hover:text-red-500 border border-gray-200 rounded px-2 py-0.5 hover:border-red-300">
+                            + 收藏
+                        </button>
+                    </form>
+                </div>
 
                 <!-- Ingredients -->
                 <div class="border-t pt-3">

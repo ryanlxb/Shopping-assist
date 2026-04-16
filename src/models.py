@@ -57,6 +57,19 @@ class Ingredient(Base):
     product: Mapped["Product"] = relationship(back_populates="ingredients")
 
 
+class Favorite(Base):
+    __tablename__ = "favorites"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    product_id: Mapped[int] = mapped_column(ForeignKey("products.id"), nullable=False, unique=True)
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        default=lambda: datetime.now(timezone.utc)
+    )
+
+    product: Mapped["Product"] = relationship()
+
+
 class IngredientRule(Base):
     __tablename__ = "ingredient_rules"
 

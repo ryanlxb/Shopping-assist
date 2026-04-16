@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from src.config import settings
 from src.database import get_engine, get_session_factory, init_db
-from src.models import Ingredient, IngredientRule, Product, SearchTask
+from src.models import Favorite, Ingredient, IngredientRule, Product, SearchTask
 from src.ocr.service import OCRService
 from src.scraper.platform import get_scraper
 import src.scraper.jd  # noqa: F401 — register JD platform
@@ -284,3 +284,61 @@ async def delete_ingredient_rule(rule_id: int):
             session.commit()
 
     return RedirectResponse("/ingredients/rules", status_code=303)
+
+
+# --- Favorites ---
+
+@app.post("/favorites/{product_id}")
+async def add_favorite(product_id: int):
+    """Add a product to favorites."""
+    with SessionFactory() as session:
+        existing = session.query(Favorite).filter_by(product_id=product_id).first()
+        if not existing:
+            session.add(Favorite(product_id=product_id))
+            session.commit()
+    return RedirectResponse("/favorites", status_code=303)
+
+
+@app.post("/favorites/{product_id}/delete")
+async def remove_favorite(product_id: int):
+    """Remove a product from favorites."""
+    with SessionFactory() as session:
+        fav = session.query(Favorite).filter_by(product_id=product_id).first()
+        if fav:
+            session.delete(fav)
+            session.commit()
+    return RedirectResponse("/favorites", status_code=303)
+
+
+@app.get("/favorites", response_class=HTMLResponse)
+async def favorites_page(request: Request):
+    """Display favorite products for comparison."""
+    with SessionFactory() as session:
+        favorites = (
+            session.query(Favorite)
+            .options(selectinload(Favorite.product).selectinload(Product.ingredients))
+            .order_by(Favorite.created_at.desc())
+            .all()
+        )
+
+        rules = _load_rules(session)
+        items = []
+        for fav in favorites:
+            product = fav.product
+            ingredient_names = [i.name for i in product.ingredients if i.name != "[未识别]"]
+            classified = [_classify_ingredient(name, rules) for name in ingredient_names]
+            whitelist_count = sum(1 for c in classified if c["category"] == "whitelist")
+            blacklist_count = sum(1 for c in classified if c["category"] == "blacklist")
+
+            items.append({
+                "favorite": fav,
+                "product": product,
+                "classified_ingredients": classified,
+                "ingredient_score": whitelist_count - blacklist_count,
+            })
+
+        return templates.TemplateResponse(
+            request,
+            "favorites.html",
+            {"items": items},
+        )
