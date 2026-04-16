@@ -8,6 +8,7 @@ from src.models import Ingredient, Product, SearchTask
 from src.ocr.ingredient_parser import parse_ingredients
 from src.ocr.service import OCRService
 from src.scraper.jd import JDScraper
+from src.scraper.platform import PlatformScraper
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +17,7 @@ class SearchService:
     def __init__(
         self,
         session: Session,
-        scraper: JDScraper | None = None,
+        scraper: PlatformScraper | None = None,
         ocr: OCRService | None = None,
     ):
         self.session = session
@@ -43,7 +44,7 @@ class SearchService:
                     price=raw.get("price"),
                     shop_name=raw.get("shop_name"),
                     product_url=raw["product_url"],
-                    platform="jd",
+                    platform=self.scraper.platform_name,
                     thumbnail_path=raw.get("thumbnail_url"),
                 )
                 self.session.add(product)

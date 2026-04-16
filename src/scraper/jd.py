@@ -21,7 +21,13 @@ USER_AGENTS = [
 COOKIE_PATH = Path("data/cookies/jd_cookies.json")
 
 
+from src.scraper.platform import register_platform
+
+
+@register_platform("jd")
 class JDScraper:
+    platform_name: str = "jd"
+
     def __init__(self, headless: bool = True):
         self.headless = headless
         self._playwright = None
