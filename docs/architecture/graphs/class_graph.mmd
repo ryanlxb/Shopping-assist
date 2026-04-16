@@ -11,9 +11,23 @@ classDiagram
     class Ingredient {
     }
     Base <|-- Ingredient
+    class IngredientRule {
+    }
+    Base <|-- IngredientRule
     class Base {
     }
     DeclarativeBase <|-- Base
+    class TBScraper {
+        -__init__(headless)
+        -_ensure_browser()
+        -_new_context()
+        -_random_delay(min_s, max_s)
+        -_save_cookies(context)
+        +search(keyword, limit)
+        +get_detail(product_url)
+        +download_images(image_urls, product_id)
+        +close()
+    }
     class JDScraper {
         -__init__(headless)
         -_ensure_browser()
@@ -25,6 +39,13 @@ classDiagram
         +download_images(image_urls, product_id)
         +close()
     }
+    class PlatformScraper {
+        +search(keyword, limit)
+        +get_detail(product_url)
+        +download_images(image_urls, product_id)
+        +close()
+    }
+    Protocol <|-- PlatformScraper
     class OCRService {
         -__init__(model, base_url)
         +recognize(image_path)

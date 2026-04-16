@@ -9,17 +9,49 @@ graph TD
     RateLimiter_can_search["RateLimiter.can_search"]
     RateLimiter_remaining["RateLimiter.remaining"]
     SearchService_execute_search["SearchService.execute_search"]
+    TBScraper__ensure_browser["TBScraper._ensure_browser"]
+    TBScraper__new_context["TBScraper._new_context"]
+    TBScraper__random_delay["TBScraper._random_delay"]
+    TBScraper__save_cookies["TBScraper._save_cookies"]
+    TBScraper_get_detail["TBScraper.get_detail"]
+    TBScraper_search["TBScraper.search"]
+    _classify_ingredient["_classify_ingredient"]
     _extract_detail_images["_extract_detail_images"]
     _extract_ingredient_text["_extract_ingredient_text"]
+    _load_products["_load_products"]
+    _load_rules["_load_rules"]
     _normalize_url["_normalize_url"]
+    create_search["create_search"]
+    filter_results["filter_results"]
     get_engine["get_engine"]
+    get_scraper["get_scraper"]
     get_session_factory["get_session_factory"]
     init_db["init_db"]
     parse_ingredients["parse_ingredients"]
     parse_product_detail["parse_product_detail"]
     parse_product_list["parse_product_list"]
+    parse_tb_product_detail["parse_tb_product_detail"]
+    parse_tb_product_list["parse_tb_product_list"]
+    results["results"]
     get_session_factory --> get_engine
     init_db --> get_engine
+    _load_products --> _load_rules
+    _load_products --> _classify_ingredient
+    create_search --> get_scraper
+    results --> _load_products
+    filter_results --> _load_products
+    TBScraper__new_context --> TBScraper__ensure_browser
+    TBScraper_search --> TBScraper__new_context
+    TBScraper_search --> parse_tb_product_list
+    TBScraper_search --> TBScraper__random_delay
+    TBScraper_search --> TBScraper__save_cookies
+    TBScraper_search --> TBScraper__random_delay
+    TBScraper_get_detail --> TBScraper__new_context
+    TBScraper_get_detail --> parse_tb_product_detail
+    TBScraper_get_detail --> TBScraper__random_delay
+    TBScraper_get_detail --> TBScraper__random_delay
+    TBScraper_get_detail --> TBScraper__save_cookies
+    TBScraper_get_detail --> TBScraper__random_delay
     JDScraper__new_context --> JDScraper__ensure_browser
     JDScraper_search --> JDScraper__new_context
     JDScraper_search --> parse_product_list
@@ -38,6 +70,10 @@ graph TD
     parse_product_detail --> _extract_ingredient_text
     parse_product_detail --> _extract_detail_images
     _extract_detail_images --> _normalize_url
+    parse_tb_product_list --> _normalize_url
+    parse_tb_product_list --> _normalize_url
+    parse_tb_product_detail --> _extract_ingredient_text
+    parse_tb_product_detail --> _extract_detail_images
     RateLimiter_can_search --> RateLimiter__today_count
     RateLimiter_remaining --> RateLimiter__today_count
     SearchService_execute_search --> parse_ingredients

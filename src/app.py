@@ -13,7 +13,9 @@ from src.config import settings
 from src.database import get_engine, get_session_factory, init_db
 from src.models import Ingredient, IngredientRule, Product, SearchTask
 from src.ocr.service import OCRService
-from src.scraper.jd import JDScraper
+from src.scraper.platform import get_scraper
+import src.scraper.jd  # noqa: F401 — register JD platform
+import src.scraper.tb  # noqa: F401 — register TB platform
 from src.services.rate_limiter import RateLimiter
 from src.services.search import SearchService
 
@@ -128,17 +130,21 @@ async def index(request: Request):
 async def create_search(
     request: Request,
     keyword: str = Form(..., max_length=100, min_length=1),
+    platform: str = Form("jd"),
 ):
     """Create a new search task."""
     keyword = keyword.strip()
     if not keyword:
         return RedirectResponse("/?error=empty_keyword", status_code=303)
 
+    if platform not in ("jd", "tb"):
+        return RedirectResponse("/?error=invalid_platform", status_code=303)
+
     with SessionFactory() as session:
         if not rate_limiter.can_search(session):
             return RedirectResponse("/?error=rate_limit", status_code=303)
 
-        scraper = JDScraper(headless=settings.scraper_headless)
+        scraper = get_scraper(platform, headless=settings.scraper_headless)
         ocr = OCRService(model=settings.ollama_model, base_url=settings.ollama_base_url)
         service = SearchService(session=session, scraper=scraper, ocr=ocr)
 

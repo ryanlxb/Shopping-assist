@@ -76,10 +76,17 @@
             <div class="flex-1 min-w-0">
                 <!-- Product Name & Price -->
                 <div class="flex justify-between items-start mb-2">
-                    <a href="{{ item.product.product_url }}" target="_blank" rel="noopener"
-                       class="text-blue-600 hover:underline font-medium text-base leading-tight line-clamp-2">
-                        {{ item.product.name }}
-                    </a>
+                    <div class="flex items-center gap-2">
+                        {% if item.product.platform == 'jd' %}
+                        <span class="inline-block text-xs px-1.5 py-0.5 rounded bg-red-100 text-red-700 font-medium flex-shrink-0">京东</span>
+                        {% elif item.product.platform == 'tb' %}
+                        <span class="inline-block text-xs px-1.5 py-0.5 rounded bg-orange-100 text-orange-700 font-medium flex-shrink-0">天猫</span>
+                        {% endif %}
+                        <a href="{{ item.product.product_url }}" target="_blank" rel="noopener"
+                           class="text-blue-600 hover:underline font-medium text-base leading-tight line-clamp-2">
+                            {{ item.product.name }}
+                        </a>
+                    </div>
                     {% if item.product.price %}
                     <span class="text-red-600 font-bold text-lg ml-4 flex-shrink-0">
                         ¥{{ "%.2f"|format(item.product.price) }}

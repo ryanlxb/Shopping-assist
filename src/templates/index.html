@@ -24,15 +24,19 @@
         {% endif %}
 
         <form action="/search" method="post" class="space-y-4">
-            <div>
+            <div class="flex gap-3">
                 <input
                     type="text"
                     name="keyword"
                     placeholder="例如：NFC果汁、零添加酱油、纯牛奶..."
                     maxlength="100"
                     required
-                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-lg"
+                    class="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-lg"
                 />
+                <select name="platform" class="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-lg bg-white">
+                    <option value="jd">京东</option>
+                    <option value="tb">天猫</option>
+                </select>
             </div>
             <button
                 type="submit"
