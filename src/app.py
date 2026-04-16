@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from src.config import settings
 from src.database import get_engine, get_session_factory, init_db
-from src.models import Ingredient, Product, SearchTask
+from src.models import Ingredient, IngredientRule, Product, SearchTask
 from src.ocr.service import OCRService
 from src.scraper.jd import JDScraper
 from src.services.rate_limiter import RateLimiter
@@ -40,7 +40,30 @@ SessionFactory = get_session_factory(engine)
 rate_limiter = RateLimiter(max_daily=settings.max_daily_searches)
 
 
-def _load_products(session: Session, task_id: int, filter_query: str = "") -> list[dict]:
+def _load_rules(session: Session) -> dict[str, set[str]]:
+    """Load ingredient rules grouped by category."""
+    rules = session.query(IngredientRule).all()
+    grouped: dict[str, set[str]] = {"blacklist": set(), "whitelist": set(), "warning": set()}
+    for rule in rules:
+        grouped.setdefault(rule.category, set()).add(rule.name.lower())
+    return grouped
+
+
+def _classify_ingredient(name: str, rules: dict[str, set[str]]) -> str:
+    """Return 'blacklist', 'whitelist', 'warning', or 'normal' for an ingredient."""
+    name_lower = name.lower()
+    for category in ("blacklist", "whitelist", "warning"):
+        if any(keyword in name_lower for keyword in rules.get(category, set())):
+            return category
+    return "normal"
+
+
+def _load_products(
+    session: Session,
+    task_id: int,
+    filter_query: str = "",
+    exclude_blacklist: bool = False,
+) -> list[dict]:
     """Load products with ingredients for a task. Shared by results and filter routes."""
     products = (
         session.query(Product)
@@ -48,6 +71,8 @@ def _load_products(session: Session, task_id: int, filter_query: str = "") -> li
         .options(selectinload(Product.ingredients))
         .all()
     )
+
+    rules = _load_rules(session)
 
     result = []
     for product in products:
@@ -57,10 +82,24 @@ def _load_products(session: Session, task_id: int, filter_query: str = "") -> li
             if not any(filter_query.lower() in name.lower() for name in ingredient_names):
                 continue
 
+        # Classify each ingredient
+        classified = []
+        has_blacklist = False
+        for name in ingredient_names:
+            cat = _classify_ingredient(name, rules)
+            classified.append({"name": name, "category": cat})
+            if cat == "blacklist":
+                has_blacklist = True
+
+        if exclude_blacklist and has_blacklist:
+            continue
+
         result.append({
             "product": product,
             "ingredients": product.ingredients,
             "ingredient_names": ingredient_names,
+            "classified_ingredients": classified,
+            "has_blacklist": has_blacklist,
         })
 
     return result
@@ -137,6 +176,7 @@ async def filter_results(
     request: Request,
     task_id: int,
     q: str = Query("", max_length=100),
+    no_blacklist: bool = Query(False),
 ):
     """Filter products by ingredient keyword."""
     with SessionFactory() as session:
@@ -150,7 +190,55 @@ async def filter_results(
             "results.html",
             {
                 "task": task,
-                "products": _load_products(session, task_id, filter_query=q),
+                "products": _load_products(session, task_id, filter_query=q, exclude_blacklist=no_blacklist),
                 "filter_query": q,
+                "no_blacklist": no_blacklist,
             },
         )
+
+
+@app.get("/ingredients/rules", response_class=HTMLResponse)
+async def ingredient_rules_page(request: Request):
+    """Ingredient rules management page."""
+    with SessionFactory() as session:
+        rules = session.query(IngredientRule).order_by(IngredientRule.category).all()
+        grouped = {"blacklist": [], "whitelist": [], "warning": []}
+        for rule in rules:
+            grouped.setdefault(rule.category, []).append(rule)
+
+        return templates.TemplateResponse(
+            request,
+            "rules.html",
+            {"rules": grouped},
+        )
+
+
+@app.post("/ingredients/rules")
+async def add_ingredient_rule(
+    name: str = Form(..., max_length=200, min_length=1),
+    category: str = Form(...),
+    description: str = Form(""),
+):
+    """Add a new ingredient rule."""
+    name = name.strip()
+    if category not in ("blacklist", "whitelist", "warning"):
+        return RedirectResponse("/ingredients/rules?error=invalid_category", status_code=303)
+
+    with SessionFactory() as session:
+        rule = IngredientRule(name=name, category=category, description=description.strip())
+        session.add(rule)
+        session.commit()
+
+    return RedirectResponse("/ingredients/rules", status_code=303)
+
+
+@app.post("/ingredients/rules/{rule_id}/delete")
+async def delete_ingredient_rule(rule_id: int):
+    """Delete an ingredient rule."""
+    with SessionFactory() as session:
+        rule = session.query(IngredientRule).filter_by(id=rule_id).first()
+        if rule:
+            session.delete(rule)
+            session.commit()
+
+    return RedirectResponse("/ingredients/rules", status_code=303)

@@ -25,24 +25,36 @@
 
 <!-- Filter -->
 <div class="bg-white rounded-lg shadow-sm p-4 mb-6">
-    <form action="/results/{{ task.id }}/filter" method="get" class="flex gap-3">
+    <form action="/results/{{ task.id }}/filter" method="get" class="flex gap-3 flex-wrap items-center">
         <input
             type="text"
             name="q"
             value="{{ filter_query or '' }}"
             placeholder="按配料关键词筛选（如：NFC、山梨酸钾、浓缩还原）"
             maxlength="100"
-            class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            class="flex-1 min-w-[200px] px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
         />
+        <label class="flex items-center gap-1.5 text-sm text-gray-600 cursor-pointer">
+            <input type="checkbox" name="no_blacklist" value="true"
+                   {% if no_blacklist is defined and no_blacklist %}checked{% endif %}
+                   class="rounded border-gray-300" />
+            排除黑名单
+        </label>
         <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors">
             筛选
         </button>
-        {% if filter_query %}
+        {% if (filter_query is defined and filter_query) or (no_blacklist is defined and no_blacklist) %}
         <a href="/results/{{ task.id }}" class="bg-gray-200 text-gray-600 px-4 py-2 rounded-lg hover:bg-gray-300 transition-colors">
             清除
         </a>
         {% endif %}
     </form>
+    <div class="mt-2 flex gap-4 text-xs text-gray-400">
+        <span><span class="inline-block w-2 h-2 rounded-full bg-red-400 mr-1"></span>黑名单</span>
+        <span><span class="inline-block w-2 h-2 rounded-full bg-green-400 mr-1"></span>白名单</span>
+        <span><span class="inline-block w-2 h-2 rounded-full bg-yellow-400 mr-1"></span>警告</span>
+        <a href="/ingredients/rules" class="text-blue-500 hover:underline ml-auto">管理配料规则</a>
+    </div>
 </div>
 
 <!-- Products -->
@@ -83,16 +95,28 @@
                 <!-- Ingredients -->
                 <div class="border-t pt-3">
                     <p class="text-sm font-medium text-gray-600 mb-2">配料信息：</p>
-                    {% if item.ingredient_names %}
+                    {% if item.classified_ingredients is defined and item.classified_ingredients %}
                     <div class="flex flex-wrap gap-1.5">
-                        {% for name in item.ingredient_names %}
+                        {% for ci in item.classified_ingredients %}
                         <span class="inline-block text-xs px-2 py-1 rounded
-                            {% if filter_query and filter_query.lower() in name.lower() %}
+                            {% if ci.category == 'blacklist' %}
+                                bg-red-100 text-red-800 font-medium border border-red-300
+                            {% elif ci.category == 'whitelist' %}
+                                bg-green-100 text-green-800 font-medium border border-green-300
+                            {% elif ci.category == 'warning' %}
                                 bg-yellow-100 text-yellow-800 font-medium border border-yellow-300
+                            {% elif filter_query is defined and filter_query and filter_query.lower() in ci.name.lower() %}
+                                bg-blue-100 text-blue-800 font-medium border border-blue-300
                             {% else %}
                                 bg-gray-100 text-gray-700
                             {% endif %}
-                        ">{{ name }}</span>
+                        ">{{ ci.name }}</span>
+                        {% endfor %}
+                    </div>
+                    {% elif item.ingredient_names %}
+                    <div class="flex flex-wrap gap-1.5">
+                        {% for name in item.ingredient_names %}
+                        <span class="inline-block text-xs px-2 py-1 rounded bg-gray-100 text-gray-700">{{ name }}</span>
                         {% endfor %}
                     </div>
                     {% else %}

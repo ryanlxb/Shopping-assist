@@ -55,3 +55,15 @@ class Ingredient(Base):
     )
 
     product: Mapped["Product"] = relationship(back_populates="ingredients")
+
+
+class IngredientRule(Base):
+    __tablename__ = "ingredient_rules"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    category: Mapped[str] = mapped_column(String(20), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        default=lambda: datetime.now(timezone.utc)
+    )
