@@ -7,6 +7,7 @@ from fastapi import FastAPI, Form, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from sqlalchemy.orm import Session, selectinload
 
 from src.config import settings
 from src.database import get_engine, get_session_factory, init_db
@@ -39,12 +40,37 @@ SessionFactory = get_session_factory(engine)
 rate_limiter = RateLimiter(max_daily=settings.max_daily_searches)
 
 
+def _load_products(session: Session, task_id: int, filter_query: str = "") -> list[dict]:
+    """Load products with ingredients for a task. Shared by results and filter routes."""
+    products = (
+        session.query(Product)
+        .filter_by(search_task_id=task_id)
+        .options(selectinload(Product.ingredients))
+        .all()
+    )
+
+    result = []
+    for product in products:
+        ingredient_names = [i.name for i in product.ingredients if i.name != "[未识别]"]
+
+        if filter_query:
+            if not any(filter_query.lower() in name.lower() for name in ingredient_names):
+                continue
+
+        result.append({
+            "product": product,
+            "ingredients": product.ingredients,
+            "ingredient_names": ingredient_names,
+        })
+
+    return result
+
+
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
     """Search page — main entry point."""
     with SessionFactory() as session:
         remaining = rate_limiter.remaining(session)
-        # Get recent search tasks
         tasks = session.query(SearchTask).order_by(
             SearchTask.created_at.desc()
         ).limit(10).all()
@@ -65,17 +91,14 @@ async def create_search(
     keyword: str = Form(..., max_length=100, min_length=1),
 ):
     """Create a new search task."""
-    # Input validation
     keyword = keyword.strip()
     if not keyword:
         return RedirectResponse("/?error=empty_keyword", status_code=303)
 
     with SessionFactory() as session:
-        # Rate limit check
         if not rate_limiter.can_search(session):
             return RedirectResponse("/?error=rate_limit", status_code=303)
 
-        # Create and start search task
         scraper = JDScraper(headless=settings.scraper_headless)
         ocr = OCRService(model=settings.ollama_model, base_url=settings.ollama_base_url)
         service = SearchService(session=session, scraper=scraper, ocr=ocr)
@@ -99,28 +122,12 @@ async def results(request: Request, task_id: int):
         if not task:
             return RedirectResponse("/?error=not_found", status_code=303)
 
-        products = session.query(Product).filter_by(
-            search_task_id=task_id
-        ).all()
-
-        # Eager load ingredients
-        products_with_ingredients = []
-        for product in products:
-            ingredients = session.query(Ingredient).filter_by(
-                product_id=product.id
-            ).all()
-            products_with_ingredients.append({
-                "product": product,
-                "ingredients": ingredients,
-                "ingredient_names": [i.name for i in ingredients if i.name != "[未识别]"],
-            })
-
         return templates.TemplateResponse(
             request,
             "results.html",
             {
                 "task": task,
-                "products": products_with_ingredients,
+                "products": _load_products(session, task_id),
             },
         )
 
@@ -137,35 +144,13 @@ async def filter_results(
         if not task:
             return RedirectResponse("/?error=not_found", status_code=303)
 
-        products = session.query(Product).filter_by(
-            search_task_id=task_id
-        ).all()
-
         q = q.strip()
-        products_with_ingredients = []
-        for product in products:
-            ingredients = session.query(Ingredient).filter_by(
-                product_id=product.id
-            ).all()
-            ingredient_names = [i.name for i in ingredients if i.name != "[未识别]"]
-
-            # Filter: if query provided, only include products with matching ingredients
-            if q:
-                if not any(q.lower() in name.lower() for name in ingredient_names):
-                    continue
-
-            products_with_ingredients.append({
-                "product": product,
-                "ingredients": ingredients,
-                "ingredient_names": ingredient_names,
-            })
-
         return templates.TemplateResponse(
             request,
             "results.html",
             {
                 "task": task,
-                "products": products_with_ingredients,
+                "products": _load_products(session, task_id, filter_query=q),
                 "filter_query": q,
             },
         )

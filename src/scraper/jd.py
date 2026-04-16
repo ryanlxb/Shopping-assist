@@ -4,6 +4,7 @@ import asyncio
 import logging
 import random
 from pathlib import Path
+from urllib.parse import quote
 
 from playwright.async_api import async_playwright
 
@@ -79,7 +80,7 @@ class JDScraper:
         try:
             page = await context.new_page()
 
-            search_url = f"https://search.jd.com/Search?keyword={keyword}&enc=utf-8"
+            search_url = f"https://search.jd.com/Search?keyword={quote(keyword)}&enc=utf-8"
             logger.info(f"Searching JD: {keyword}")
 
             await page.goto(search_url, wait_until="domcontentloaded")
@@ -147,6 +148,9 @@ class JDScraper:
     async def download_images(self, image_urls: list[str], product_id: str) -> list[str]:
         """Download images and return local file paths."""
         import httpx
+
+        if not product_id.isdigit():
+            raise ValueError(f"product_id must be numeric, got: {product_id!r}")
 
         saved_paths = []
         image_dir = Path(f"data/images/{product_id}")
