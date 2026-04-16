@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from src.config import settings
 from src.database import get_engine, get_session_factory, init_db
-from src.models import Favorite, Ingredient, IngredientRule, Product, SearchTask
+from src.models import Favorite, Ingredient, IngredientRule, PriceHistory, Product, SearchTask
 from src.ocr.service import OCRService
 from src.scraper.platform import get_scraper
 import src.scraper.jd  # noqa: F401 — register JD platform
@@ -348,4 +348,35 @@ async def favorites_page(request: Request, sort: str = Query("")):
             request,
             "favorites.html",
             {"items": items, "sort": sort},
+        )
+
+
+# --- Price History ---
+
+@app.get("/price-history/{product_id}", response_class=HTMLResponse)
+async def price_history_page(request: Request, product_id: int):
+    """Display price history for a product."""
+    with SessionFactory() as session:
+        product = session.query(Product).filter_by(id=product_id).first()
+        if not product:
+            return RedirectResponse("/?error=not_found", status_code=303)
+
+        history = (
+            session.query(PriceHistory)
+            .filter_by(product_id=product_id)
+            .order_by(PriceHistory.recorded_at.asc())
+            .all()
+        )
+
+        return templates.TemplateResponse(
+            request,
+            "price_history.html",
+            {
+                "product": product,
+                "history": history,
+                "history_json": [
+                    {"date": h.recorded_at.strftime("%Y-%m-%d %H:%M"), "price": h.price, "platform": h.platform}
+                    for h in history
+                ],
+            },
         )

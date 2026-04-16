@@ -57,6 +57,20 @@ class Ingredient(Base):
     product: Mapped["Product"] = relationship(back_populates="ingredients")
 
 
+class PriceHistory(Base):
+    __tablename__ = "price_history"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    product_id: Mapped[int] = mapped_column(ForeignKey("products.id"), nullable=False)
+    price: Mapped[float] = mapped_column(Float, nullable=False)
+    platform: Mapped[str] = mapped_column(String(20), nullable=False)
+    recorded_at: Mapped[datetime] = mapped_column(
+        default=lambda: datetime.now(timezone.utc)
+    )
+
+    product: Mapped["Product"] = relationship()
+
+
 class Favorite(Base):
     __tablename__ = "favorites"
 

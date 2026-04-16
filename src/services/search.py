@@ -4,7 +4,7 @@ import logging
 
 from sqlalchemy.orm import Session
 
-from src.models import Ingredient, Product, SearchTask
+from src.models import Ingredient, PriceHistory, Product, SearchTask
 from src.ocr.ingredient_parser import parse_ingredients
 from src.ocr.service import OCRService
 from src.scraper.jd import JDScraper
@@ -49,6 +49,14 @@ class SearchService:
                 )
                 self.session.add(product)
                 self.session.flush()
+
+                # Record price history
+                if product.price is not None:
+                    self.session.add(PriceHistory(
+                        product_id=product.id,
+                        price=product.price,
+                        platform=self.scraper.platform_name,
+                    ))
 
                 # Step 3: Get detail page
                 detail = await self.scraper.get_detail(raw["product_url"])
