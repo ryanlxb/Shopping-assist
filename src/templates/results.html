@@ -123,7 +123,8 @@
                             {% else %}
                                 bg-gray-100 text-gray-700
                             {% endif %}
-                        ">{{ ci.name }}</span>
+                        " {% if ci.kb_desc is defined and ci.kb_desc %}title="[{{ ci.kb_type }}] {{ ci.kb_desc }}"{% endif %}
+                        >{{ ci.name }}{% if ci.kb_type is defined and ci.kb_type %}<span class="opacity-60 ml-0.5">({{ ci.kb_type }})</span>{% endif %}</span>
                         {% endfor %}
                     </div>
                     {% elif item.ingredient_names %}

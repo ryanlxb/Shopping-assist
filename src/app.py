@@ -41,6 +41,13 @@ SessionFactory = get_session_factory(engine)
 # Services
 rate_limiter = RateLimiter(max_daily=settings.max_daily_searches)
 
+# Seed default ingredient rules on first run
+from src.services.ingredient_knowledge import auto_seed_rules
+with SessionFactory() as _session:
+    _seeded = auto_seed_rules(_session)
+    if _seeded:
+        logger.info(f"Seeded {_seeded} default ingredient rules")
+
 
 def _load_rules(session: Session) -> dict[str, set[str]]:
     """Load ingredient rules grouped by category."""
@@ -51,13 +58,24 @@ def _load_rules(session: Session) -> dict[str, set[str]]:
     return grouped
 
 
-def _classify_ingredient(name: str, rules: dict[str, set[str]]) -> str:
-    """Return 'blacklist', 'whitelist', 'warning', or 'normal' for an ingredient."""
+def _classify_ingredient(name: str, rules: dict[str, set[str]]) -> dict:
+    """Classify an ingredient and return its category and knowledge base info."""
+    from src.services.ingredient_knowledge import lookup_additive
+
     name_lower = name.lower()
-    for category in ("blacklist", "whitelist", "warning"):
-        if any(keyword in name_lower for keyword in rules.get(category, set())):
-            return category
-    return "normal"
+    category = "normal"
+    for cat in ("blacklist", "whitelist", "warning"):
+        if any(keyword in name_lower for keyword in rules.get(cat, set())):
+            category = cat
+            break
+
+    kb_info = lookup_additive(name)
+    return {
+        "name": name,
+        "category": category,
+        "kb_type": kb_info["type"] if kb_info else None,
+        "kb_desc": kb_info["desc"] if kb_info else None,
+    }
 
 
 def _load_products(
@@ -89,9 +107,9 @@ def _load_products(
         classified = []
         has_blacklist = False
         for name in ingredient_names:
-            cat = _classify_ingredient(name, rules)
-            classified.append({"name": name, "category": cat})
-            if cat == "blacklist":
+            ci = _classify_ingredient(name, rules)
+            classified.append(ci)
+            if ci["category"] == "blacklist":
                 has_blacklist = True
 
         if exclude_blacklist and has_blacklist:
