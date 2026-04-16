@@ -311,7 +311,7 @@ async def remove_favorite(product_id: int):
 
 
 @app.get("/favorites", response_class=HTMLResponse)
-async def favorites_page(request: Request):
+async def favorites_page(request: Request, sort: str = Query("")):
     """Display favorite products for comparison."""
     with SessionFactory() as session:
         favorites = (
@@ -337,8 +337,15 @@ async def favorites_page(request: Request):
                 "ingredient_score": whitelist_count - blacklist_count,
             })
 
+        if sort == "price_asc":
+            items.sort(key=lambda x: x["product"].price or float("inf"))
+        elif sort == "price_desc":
+            items.sort(key=lambda x: x["product"].price or 0, reverse=True)
+        elif sort == "score_desc":
+            items.sort(key=lambda x: x["ingredient_score"], reverse=True)
+
         return templates.TemplateResponse(
             request,
             "favorites.html",
-            {"items": items},
+            {"items": items, "sort": sort},
         )

@@ -7,7 +7,27 @@
     <a href="/" class="text-blue-600 hover:underline text-sm">&larr; 返回搜索</a>
 </div>
 
-<h1 class="text-xl font-bold text-gray-800 mb-6">收藏商品对比 ({{ items|length }})</h1>
+<div class="flex justify-between items-center mb-6">
+    <h1 class="text-xl font-bold text-gray-800">收藏商品对比 ({{ items|length }})</h1>
+    {% if items|length > 1 %}
+    <div class="flex gap-2 text-sm">
+        <a href="/favorites?sort=price_asc" class="px-3 py-1 rounded border {% if sort == 'price_asc' %}bg-blue-600 text-white border-blue-600{% else %}border-gray-300 text-gray-600 hover:border-blue-400{% endif %}">价格低→高</a>
+        <a href="/favorites?sort=price_desc" class="px-3 py-1 rounded border {% if sort == 'price_desc' %}bg-blue-600 text-white border-blue-600{% else %}border-gray-300 text-gray-600 hover:border-blue-400{% endif %}">价格高→低</a>
+        <a href="/favorites?sort=score_desc" class="px-3 py-1 rounded border {% if sort == 'score_desc' %}bg-blue-600 text-white border-blue-600{% else %}border-gray-300 text-gray-600 hover:border-blue-400{% endif %}">评分最高</a>
+        {% if sort %}<a href="/favorites" class="px-3 py-1 rounded border border-gray-300 text-gray-400 hover:border-gray-400">清除</a>{% endif %}
+    </div>
+    {% endif %}
+</div>
+
+{% if items|length > 1 %}
+<div class="bg-blue-50 rounded-lg p-3 mb-4 text-sm text-blue-700">
+    {% set prices = items | selectattr('product.price') | map(attribute='product.price') | list %}
+    {% if prices %}
+    价格范围: ¥{{ "%.2f"|format(prices|min) }} — ¥{{ "%.2f"|format(prices|max) }}
+    {% if prices|max > 0 %} · 价差: ¥{{ "%.2f"|format(prices|max - prices|min) }}{% endif %}
+    {% endif %}
+</div>
+{% endif %}
 
 {% if items %}
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
