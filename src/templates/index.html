@@ -51,6 +51,36 @@
         </form>
     </div>
 
+    <!-- Recommendations -->
+    {% if recommendations is defined and recommendations %}
+    <div class="mt-8">
+        <h2 class="text-lg font-semibold text-gray-700 mb-3">推荐商品（配料评分最高）</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {% for item in recommendations %}
+            <a href="{{ item.product.product_url }}" target="_blank" rel="noopener"
+               class="block bg-white rounded-lg shadow-sm p-4 hover:shadow-md transition-shadow">
+                <div class="flex justify-between items-start">
+                    <div class="flex-1 min-w-0">
+                        {% if item.product.platform == 'jd' %}
+                        <span class="inline-block text-xs px-1 py-0.5 rounded bg-red-100 text-red-700 mb-1">京东</span>
+                        {% elif item.product.platform == 'tb' %}
+                        <span class="inline-block text-xs px-1 py-0.5 rounded bg-orange-100 text-orange-700 mb-1">天猫</span>
+                        {% endif %}
+                        <p class="text-sm font-medium text-gray-800 line-clamp-1">{{ item.product.name }}</p>
+                    </div>
+                    <div class="text-right ml-3 flex-shrink-0">
+                        {% if item.product.price %}
+                        <p class="text-red-600 font-bold">¥{{ "%.2f"|format(item.product.price) }}</p>
+                        {% endif %}
+                        <p class="text-xs text-green-600 font-medium">评分 +{{ item.ingredient_score }}</p>
+                    </div>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Recent Search Tasks -->
     {% if recent_tasks %}
     <div class="mt-8">

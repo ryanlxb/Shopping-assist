@@ -138,6 +138,34 @@ def _load_products(
     return result
 
 
+def _get_recommendations(session: Session, limit: int = 6) -> list[dict]:
+    """Get top-scoring products from past searches as recommendations."""
+    products = (
+        session.query(Product)
+        .options(selectinload(Product.ingredients))
+        .limit(100)
+        .all()
+    )
+    if not products:
+        return []
+
+    rules = _load_rules(session)
+    scored = []
+    for product in products:
+        ingredient_names = [i.name for i in product.ingredients if i.name != "[未识别]"]
+        if not ingredient_names:
+            continue
+        classified = [_classify_ingredient(name, rules) for name in ingredient_names]
+        whitelist_count = sum(1 for c in classified if c["category"] == "whitelist")
+        blacklist_count = sum(1 for c in classified if c["category"] == "blacklist")
+        score = whitelist_count - blacklist_count
+        if score > 0:
+            scored.append({"product": product, "ingredient_score": score, "classified_ingredients": classified})
+
+    scored.sort(key=lambda x: x["ingredient_score"], reverse=True)
+    return scored[:limit]
+
+
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
     """Search page — main entry point."""
@@ -147,12 +175,15 @@ async def index(request: Request):
             SearchTask.created_at.desc()
         ).limit(10).all()
 
+        recommendations = _get_recommendations(session)
+
         return templates.TemplateResponse(
             request,
             "index.html",
             {
                 "remaining_searches": remaining,
                 "recent_tasks": tasks,
+                "recommendations": recommendations,
             },
         )
 
