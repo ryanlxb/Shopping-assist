@@ -1,0 +1,38 @@
+graph TD
+    User([用户]) --> WebUI[Web UI<br/>FastAPI + Jinja2 + TailwindCSS]
+
+    WebUI --> SearchAPI[搜索 API<br/>POST /search]
+    WebUI --> ResultsAPI[结果 API<br/>GET /results]
+    WebUI --> FilterAPI[筛选 API<br/>GET /filter]
+
+    SearchAPI --> RateLimiter[频率限制器]
+    RateLimiter --> SearchService[搜索编排服务]
+
+    SearchService --> JDScraper[京东爬虫<br/>Playwright stealth]
+    JDScraper --> JDSearch[京东搜索页]
+    JDScraper --> JDDetail[京东详情页]
+
+    SearchService --> HTMLParser[HTML 解析器<br/>BS4 + lxml]
+    SearchService --> ImageDL[图片下载器]
+    SearchService --> OCRService[OCR 服务]
+
+    OCRService --> Ollama[Ollama API]
+    Ollama --> QwenVL[Qwen2.5-VL<br/>本地多模态 LLM]
+
+    OCRService --> IngredientParser[配料文本解析器]
+
+    SearchService --> DB[(SQLite)]
+    ResultsAPI --> DB
+    FilterAPI --> DB
+
+    ImageDL --> LocalFS[/本地文件系统<br/>data/images//]
+
+    subgraph 数据模型
+        SearchTask[SearchTask<br/>搜索任务]
+        Product[Product<br/>商品信息]
+        Ingredient[Ingredient<br/>配料信息]
+        SearchTask --> Product
+        Product --> Ingredient
+    end
+
+    DB --> 数据模型

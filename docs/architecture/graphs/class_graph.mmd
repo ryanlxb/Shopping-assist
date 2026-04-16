@@ -1,0 +1,42 @@
+classDiagram
+    class Settings {
+    }
+    BaseSettings <|-- Settings
+    class SearchTask {
+    }
+    Base <|-- SearchTask
+    class Product {
+    }
+    Base <|-- Product
+    class Ingredient {
+    }
+    Base <|-- Ingredient
+    class Base {
+    }
+    DeclarativeBase <|-- Base
+    class JDScraper {
+        -__init__(headless)
+        -_ensure_browser()
+        -_new_context()
+        -_random_delay(min_s, max_s)
+        -_save_cookies(context)
+        +search(keyword, limit)
+        +get_detail(product_url)
+        +download_images(image_urls, product_id)
+        +close()
+    }
+    class OCRService {
+        -__init__(model, base_url)
+        +recognize(image_path)
+        +health_check()
+    }
+    class RateLimiter {
+        -__init__(max_daily)
+        -_today_count(session)
+        +can_search(session)
+        +remaining(session)
+    }
+    class SearchService {
+        -__init__(session, scraper, ocr)
+        +execute_search(keyword, limit)
+    }

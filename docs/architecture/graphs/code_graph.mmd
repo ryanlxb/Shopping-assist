@@ -1,0 +1,43 @@
+graph TD
+    src_config_py["config.py"]
+    click src_config_py href "src/config.py"
+    src_models_py["models.py"]
+    click src_models_py href "src/models.py"
+    src_database_py["database.py"]
+    click src_database_py href "src/database.py"
+    src___init___py["__init__.py"]
+    click src___init___py href "src/__init__.py"
+    src_app_py["app.py"]
+    click src_app_py href "src/app.py"
+    src_scraper_jd_py["jd.py"]
+    click src_scraper_jd_py href "src/scraper/jd.py"
+    src_scraper___init___py["__init__.py"]
+    click src_scraper___init___py href "src/scraper/__init__.py"
+    src_scraper_parser_py["parser.py"]
+    click src_scraper_parser_py href "src/scraper/parser.py"
+    src_ocr_service_py["service.py"]
+    click src_ocr_service_py href "src/ocr/service.py"
+    src_ocr___init___py["__init__.py"]
+    click src_ocr___init___py href "src/ocr/__init__.py"
+    src_ocr_ingredient_parser_py["ingredient_parser.py"]
+    click src_ocr_ingredient_parser_py href "src/ocr/ingredient_parser.py"
+    src_services_rate_limiter_py["rate_limiter.py"]
+    click src_services_rate_limiter_py href "src/services/rate_limiter.py"
+    src_services___init___py["__init__.py"]
+    click src_services___init___py href "src/services/__init__.py"
+    src_services_search_py["search.py"]
+    click src_services_search_py href "src/services/search.py"
+    src_models_py --> src_database_py
+    src_app_py --> src_config_py
+    src_app_py --> src_database_py
+    src_app_py --> src_models_py
+    src_app_py --> src_ocr_service_py
+    src_app_py --> src_scraper_jd_py
+    src_app_py --> src_services_rate_limiter_py
+    src_app_py --> src_services_search_py
+    src_scraper_jd_py --> src_scraper_parser_py
+    src_services_rate_limiter_py --> src_models_py
+    src_services_search_py --> src_models_py
+    src_services_search_py --> src_ocr_ingredient_parser_py
+    src_services_search_py --> src_ocr_service_py
+    src_services_search_py --> src_scraper_jd_py

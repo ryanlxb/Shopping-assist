@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block title %}Shopping Assist - 搜索{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <!-- Search Form -->
+    <div class="bg-white rounded-lg shadow-md p-8 mt-8">
+        <h1 class="text-2xl font-bold text-gray-800 mb-2">商品配料表搜索</h1>
+        <p class="text-gray-500 mb-6">输入关键词，自动获取京东商品配料表信息</p>
+
+        {% if request.query_params.get('error') == 'rate_limit' %}
+        <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
+            今日搜索次数已达上限，请明天再试。
+        </div>
+        {% elif request.query_params.get('error') == 'search_failed' %}
+        <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
+            搜索失败，请稍后重试。
+        </div>
+        {% elif request.query_params.get('error') == 'empty_keyword' %}
+        <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4">
+            请输入搜索关键词。
+        </div>
+        {% endif %}
+
+        <form action="/search" method="post" class="space-y-4">
+            <div>
+                <input
+                    type="text"
+                    name="keyword"
+                    placeholder="例如：NFC果汁、零添加酱油、纯牛奶..."
+                    maxlength="100"
+                    required
+                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-lg"
+                />
+            </div>
+            <button
+                type="submit"
+                class="w-full bg-blue-600 text-white py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:bg-gray-400"
+                {% if remaining_searches <= 0 %}disabled{% endif %}
+            >
+                搜索商品配料表
+            </button>
+            <p class="text-sm text-gray-400 text-center">
+                今日剩余搜索次数：{{ remaining_searches }}
+            </p>
+        </form>
+    </div>
+
+    <!-- Recent Search Tasks -->
+    {% if recent_tasks %}
+    <div class="mt-8">
+        <h2 class="text-lg font-semibold text-gray-700 mb-3">最近搜索</h2>
+        <div class="space-y-2">
+            {% for task in recent_tasks %}
+            <a href="/results/{{ task.id }}" class="block bg-white rounded-lg shadow-sm p-4 hover:shadow-md transition-shadow">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <span class="font-medium text-gray-800">{{ task.keyword }}</span>
+                        <span class="text-sm text-gray-400 ml-2">{{ task.result_count }} 个商品</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        {% if task.status == 'completed' %}
+                        <span class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">完成</span>
+                        {% elif task.status == 'running' %}
+                        <span class="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded">进行中</span>
+                        {% elif task.status == 'failed' %}
+                        <span class="text-xs bg-red-100 text-red-700 px-2 py-1 rounded">失败</span>
+                        {% endif %}
+                        <span class="text-xs text-gray-400">{{ task.created_at.strftime('%m-%d %H:%M') }}</span>
+                    </div>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

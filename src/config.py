@@ -1,0 +1,18 @@
+"""Application configuration."""
+
+from pydantic_settings import BaseSettings
+
+
+class Settings(BaseSettings):
+    app_name: str = "Shopping Assist"
+    db_url: str = "sqlite:///data/shopping.db"
+    max_daily_searches: int = 1
+    max_products_per_search: int = 30
+    ollama_model: str = "qwen2.5-vl:7b"
+    ollama_base_url: str = "http://localhost:11434"
+    scraper_headless: bool = True
+
+    model_config = {"env_prefix": "SA_"}
+
+
+settings = Settings()

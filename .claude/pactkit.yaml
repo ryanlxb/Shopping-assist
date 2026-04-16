@@ -1,0 +1,27 @@
+# PactKit Project Configuration
+stack: auto
+version: 0.0.1
+root: .
+developer: ""
+
+# Hooks (shell commands triggered by pactkit events)
+hooks:
+  pre_commit: ""
+  post_commit: ""
+  pre_push: ""
+
+# CI/CD configuration
+ci:
+  provider: ""
+  pipeline: ""
+
+# Issue tracker
+issue_tracker:
+  provider: ""
+  project: ""
+
+# Lint blocking (if true, lint errors block /project-act)
+lint_blocking: true
+
+# Auto-fix (if true, auto-fix lint errors before commit)
+auto_fix: false

@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Shopping Assist{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .highlight { background-color: #fef08a; padding: 0 2px; border-radius: 2px; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <nav class="bg-white shadow-sm border-b">
+        <div class="max-w-6xl mx-auto px-4 py-3">
+            <a href="/" class="text-xl font-bold text-blue-600">Shopping Assist</a>
+            <span class="text-gray-400 ml-2 text-sm">配料表智能查询工具</span>
+        </div>
+    </nav>
+    <main class="max-w-6xl mx-auto px-4 py-6">
+        {% block content %}{% endblock %}
+    </main>
+    <footer class="max-w-6xl mx-auto px-4 py-8 text-center text-gray-400 text-sm">
+        Shopping Assist v0.0.1
+    </footer>
+</body>
+</html>
