@@ -65,6 +65,7 @@ def _load_products(
     task_id: int,
     filter_query: str = "",
     exclude_blacklist: bool = False,
+    sort_by: str = "",
 ) -> list[dict]:
     """Load products with ingredients for a task. Shared by results and filter routes."""
     products = (
@@ -96,13 +97,25 @@ def _load_products(
         if exclude_blacklist and has_blacklist:
             continue
 
+        whitelist_count = sum(1 for c in classified if c["category"] == "whitelist")
+        blacklist_count = sum(1 for c in classified if c["category"] == "blacklist")
+        ingredient_score = whitelist_count - blacklist_count
+
         result.append({
             "product": product,
             "ingredients": product.ingredients,
             "ingredient_names": ingredient_names,
             "classified_ingredients": classified,
             "has_blacklist": has_blacklist,
+            "ingredient_score": ingredient_score,
         })
+
+    if sort_by == "price_asc":
+        result.sort(key=lambda x: x["product"].price or float("inf"))
+    elif sort_by == "price_desc":
+        result.sort(key=lambda x: x["product"].price or 0, reverse=True)
+    elif sort_by == "score_desc":
+        result.sort(key=lambda x: x["ingredient_score"], reverse=True)
 
     return result
 
@@ -183,8 +196,12 @@ async def filter_results(
     task_id: int,
     q: str = Query("", max_length=100),
     no_blacklist: bool = Query(False),
+    sort: str = Query(""),
 ):
-    """Filter products by ingredient keyword."""
+    """Filter and sort products."""
+    if sort not in ("", "price_asc", "price_desc", "score_desc"):
+        sort = ""
+
     with SessionFactory() as session:
         task = session.query(SearchTask).filter_by(id=task_id).first()
         if not task:
@@ -196,9 +213,10 @@ async def filter_results(
             "results.html",
             {
                 "task": task,
-                "products": _load_products(session, task_id, filter_query=q, exclude_blacklist=no_blacklist),
+                "products": _load_products(session, task_id, filter_query=q, exclude_blacklist=no_blacklist, sort_by=sort),
                 "filter_query": q,
                 "no_blacklist": no_blacklist,
+                "sort": sort,
             },
         )
 
