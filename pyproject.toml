@@ -1,6 +1,6 @@
 [project]
 name = "shopping-assist"
-version = "0.0.1"
+version = "0.1.0"
 description = "跨电商平台商品配料表智能查询与比价工具"
 requires-python = ">=3.11"
 dependencies = [

@@ -29,7 +29,7 @@ TEMPLATES_DIR = Path(__file__).parent / "templates"
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 # Static files (for images)
-DATA_DIR = Path("data")
+DATA_DIR = Path(settings.data_dir)
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 app.mount("/data", StaticFiles(directory=str(DATA_DIR)), name="data")
 

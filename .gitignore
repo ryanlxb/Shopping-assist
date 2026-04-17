@@ -19,5 +19,8 @@ data/
 .DS_Store
 Thumbs.db
 
+# Claude
+.claude/agent-memory/
+
 # Environment
 .env

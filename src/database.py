@@ -5,8 +5,7 @@ from pathlib import Path
 from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
-DB_DIR = Path("data")
-DB_PATH = DB_DIR / "shopping.db"
+from src.config import settings
 
 
 class Base(DeclarativeBase):
@@ -15,8 +14,10 @@ class Base(DeclarativeBase):
 
 def get_engine(db_url: str | None = None):
     if db_url is None:
-        DB_DIR.mkdir(parents=True, exist_ok=True)
-        db_url = f"sqlite:///{DB_PATH}"
+        db_url = settings.db_url
+    if db_url.startswith("sqlite:///"):
+        db_path = Path(db_url.replace("sqlite:///", ""))
+        db_path.parent.mkdir(parents=True, exist_ok=True)
     return create_engine(db_url, echo=False)
 
 

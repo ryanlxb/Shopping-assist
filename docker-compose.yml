@@ -1,0 +1,17 @@
+services:
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - shopping-data:/app/data
+    environment:
+      - SA_DB_URL=sqlite:////app/data/shopping.db
+      - SA_DATA_DIR=/app/data
+      - SA_OLLAMA_BASE_URL=http://host.docker.internal:11434
+      - SA_MAX_DAILY_SEARCHES=10
+      - SA_SCRAPER_HEADLESS=true
+    restart: unless-stopped
+
+volumes:
+  shopping-data:
