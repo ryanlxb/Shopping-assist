@@ -12,6 +12,8 @@ class Settings(BaseSettings):
     ollama_model: str = "qwen2.5-vl:7b"
     ollama_base_url: str = "http://localhost:11434"
     scraper_headless: bool = True
+    cdp_enabled: bool = True
+    cdp_port: int = 9222
 
     model_config = {"env_prefix": "SA_"}
 

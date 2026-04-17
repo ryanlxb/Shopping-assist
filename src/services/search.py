@@ -7,8 +7,7 @@ from sqlalchemy.orm import Session
 from src.models import Ingredient, PriceHistory, Product, SearchTask
 from src.ocr.ingredient_parser import parse_ingredients
 from src.ocr.service import OCRService
-from src.scraper.jd import JDScraper
-from src.scraper.platform import PlatformScraper
+from src.scraper.platform import PlatformScraper, get_scraper
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +20,7 @@ class SearchService:
         ocr: OCRService | None = None,
     ):
         self.session = session
-        self.scraper = scraper or JDScraper()
+        self.scraper = scraper or get_scraper("jd")
         self.ocr = ocr or OCRService()
 
     async def execute_search(self, keyword: str, limit: int = 30) -> SearchTask:

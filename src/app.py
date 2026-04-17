@@ -206,7 +206,12 @@ async def create_search(
         if not rate_limiter.can_search(session):
             return RedirectResponse("/?error=rate_limit", status_code=303)
 
-        scraper = get_scraper(platform, headless=settings.scraper_headless)
+        scraper = get_scraper(
+            platform,
+            headless=settings.scraper_headless,
+            cdp_enabled=settings.cdp_enabled,
+            cdp_port=settings.cdp_port,
+        )
         ocr = OCRService(model=settings.ollama_model, base_url=settings.ollama_base_url)
         service = SearchService(session=session, scraper=scraper, ocr=ocr)
 
