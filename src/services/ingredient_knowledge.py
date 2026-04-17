@@ -82,14 +82,12 @@ def auto_seed_rules(session) -> int:
     count = 0
     for name, info in ADDITIVE_DATABASE.items():
         rule_category = category_map.get(info["category"], "warning")
-        # Only auto-seed caution and avoid items as rules
-        if info["category"] in ("caution", "avoid"):
-            session.add(IngredientRule(
-                name=name,
-                category=rule_category,
-                description=f"[{info['type']}] {info['desc']}",
-            ))
-            count += 1
+        session.add(IngredientRule(
+            name=name,
+            category=rule_category,
+            description=f"[{info['type']}] {info['desc']}",
+        ))
+        count += 1
 
     session.commit()
     return count

@@ -1,6 +1,7 @@
-"""Taobao/Tmall scraper using Playwright with stealth mode."""
+"""Taobao/Tmall scraper using Playwright with stealth mode and DOM extraction."""
 
 import asyncio
+import json
 import logging
 import random
 from pathlib import Path
@@ -13,12 +14,79 @@ from src.scraper.platform import register_platform
 logger = logging.getLogger(__name__)
 
 USER_AGENTS = [
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36 Edg/147.0.0.0",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36",
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2.1 Safari/605.1.15",
 ]
 
 COOKIE_PATH = Path("data/cookies/tb_cookies.json")
+
+# JS to extract product data directly from Taobao search page DOM
+_JS_EXTRACT_PRODUCTS = r"""() => {
+    const cards = document.querySelectorAll('[class*="Card--"]');
+    const results = [];
+    for (const card of cards) {
+        try {
+            const titleEls = card.querySelectorAll('span, div');
+            let bestTitle = '';
+            for (const el of titleEls) {
+                const t = el.innerText.trim();
+                if (t.length > bestTitle.length && t.length > 10 && t.length < 150
+                    && /[\u4e00-\u9fff]/.test(t)
+                    && !/^\u5165\u9009/.test(t)
+                    && !/\u56de\u5934\u5ba2/.test(t)) {
+                    bestTitle = t;
+                }
+            }
+            if (!bestTitle) continue;
+            bestTitle = bestTitle.split('\n')[0].trim();
+
+            const intEl = card.querySelector('[class*="priceInt"]');
+            const floatEl = card.querySelector('[class*="priceFloat"]');
+            let price = null;
+            if (intEl) {
+                const priceStr = intEl.innerText.trim() + (floatEl ? floatEl.innerText.trim() : '');
+                price = parseFloat(priceStr);
+                if (isNaN(price)) price = null;
+            }
+
+            const allLinks = card.querySelectorAll('a[href]');
+            let productUrl = '';
+            for (const link of allLinks) {
+                const h = link.href;
+                if (h.includes('item.taobao.com') || h.includes('detail.tmall.com') || h.includes('item.htm')) {
+                    productUrl = h; break;
+                }
+            }
+            if (!productUrl) {
+                for (const link of allLinks) {
+                    if (link.href.includes('click.simba') || link.href.includes('s.click')) {
+                        productUrl = link.href; break;
+                    }
+                }
+            }
+            if (!productUrl && allLinks.length > 0) productUrl = allLinks[0].href;
+
+            let shop = '';
+            const shopEl = card.querySelector('[class*="shopName"]');
+            if (shopEl) shop = shopEl.innerText.trim();
+
+            const img = card.querySelector('img[src*="alicdn"]') || card.querySelector('img[src]');
+            const imgSrc = img ? (img.src || '') : '';
+
+            if (bestTitle.length > 10) {
+                results.push({
+                    name: bestTitle.substring(0, 100),
+                    price: price,
+                    product_url: productUrl.substring(0, 500),
+                    shop_name: shop.substring(0, 60),
+                    thumbnail_url: imgSrc.substring(0, 300),
+                });
+            }
+        } catch(e) {}
+    }
+    return results;
+}"""
 
 
 @register_platform("tb")
@@ -45,14 +113,14 @@ class TBScraper:
             locale="zh-CN",
         )
         try:
-            from playwright_stealth import stealth_async
-            await stealth_async(context)
+            from playwright_stealth import Stealth
+            stealth = Stealth(navigator_platform_override="MacIntel")
+            await stealth.apply_stealth_async(context)
         except ImportError:
             logger.warning("playwright-stealth not installed")
 
         if COOKIE_PATH.exists():
             try:
-                import json
                 cookies = json.loads(COOKIE_PATH.read_text())
                 await context.add_cookies(cookies)
             except Exception:
@@ -66,7 +134,6 @@ class TBScraper:
 
     async def _save_cookies(self, context):
         try:
-            import json
             COOKIE_PATH.parent.mkdir(parents=True, exist_ok=True)
             cookies = await context.cookies()
             COOKIE_PATH.write_text(json.dumps(cookies, ensure_ascii=False))
@@ -74,33 +141,30 @@ class TBScraper:
             logger.warning("Failed to save TB cookies")
 
     async def search(self, keyword: str, limit: int = 30) -> list[dict]:
-        """Search Tmall for products by keyword."""
-        from src.scraper.tb_parser import parse_tb_product_list
-
+        """Search Taobao for products by keyword using DOM extraction."""
         context = await self._new_context()
         try:
             page = await context.new_page()
 
-            search_url = f"https://list.tmall.com/search_product.htm?q={quote(keyword)}"
-            logger.info(f"Searching Tmall: {keyword}")
+            search_url = f"https://s.taobao.com/search?q={quote(keyword)}"
+            logger.info(f"Searching Taobao: {keyword}")
 
             await page.goto(search_url, wait_until="domcontentloaded")
-            await self._random_delay(2.0, 4.0)
+            await self._random_delay(8.0, 12.0)
 
-            for _ in range(3):
+            for _ in range(5):
                 await page.evaluate("window.scrollBy(0, window.innerHeight)")
-                await self._random_delay(1.0, 2.0)
+                await self._random_delay(1.5, 3.0)
 
-            html = await page.content()
-            products = parse_tb_product_list(html)
+            products = await page.evaluate(_JS_EXTRACT_PRODUCTS)
 
             await self._save_cookies(context)
-            logger.info(f"Found {len(products)} products on Tmall for '{keyword}'")
+            logger.info(f"Found {len(products)} products on Taobao for '{keyword}'")
 
             return products[:limit]
 
         except Exception as e:
-            logger.error(f"Tmall search failed for '{keyword}': {e}")
+            logger.error(f"Taobao search failed for '{keyword}': {e}")
             raise
         finally:
             await context.close()

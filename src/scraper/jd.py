@@ -1,6 +1,7 @@
-"""JD (京东) scraper using Playwright with stealth mode."""
+"""JD (京东) scraper using Playwright with stealth mode and DOM extraction."""
 
 import asyncio
+import json
 import logging
 import random
 from pathlib import Path
@@ -11,14 +12,64 @@ from playwright.async_api import async_playwright
 logger = logging.getLogger(__name__)
 
 USER_AGENTS = [
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36 Edg/147.0.0.0",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36",
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2.1 Safari/605.1.15",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0",
-    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:128.0) Gecko/20100101 Firefox/128.0",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36",
 ]
 
 COOKIE_PATH = Path("data/cookies/jd_cookies.json")
+
+# JS to extract product data directly from JD search page DOM
+_JS_EXTRACT_PRODUCTS = r"""() => {
+    const items = document.querySelectorAll('#J_goodsList .gl-item');
+    const results = [];
+    for (const item of items) {
+        try {
+            const nameEl = item.querySelector('.p-name em');
+            if (!nameEl) continue;
+            const name = nameEl.innerText.trim();
+            if (!name || name.length < 4) continue;
+
+            let price = null;
+            const priceEl = item.querySelector('.p-price strong i:last-child')
+                         || item.querySelector('.p-price strong');
+            if (priceEl) {
+                const priceText = priceEl.innerText.replace(/[￥¥\s]/g, '').trim();
+                price = parseFloat(priceText);
+                if (isNaN(price)) price = null;
+            }
+
+            const linkEl = item.querySelector('.p-img a');
+            let productUrl = '';
+            if (linkEl) {
+                const h = linkEl.href || linkEl.getAttribute('href') || '';
+                productUrl = h.startsWith('//') ? 'https:' + h : h;
+            }
+
+            let shopName = '';
+            const shopEl = item.querySelector('.p-shop a');
+            if (shopEl) shopName = shopEl.innerText.trim();
+
+            let thumbnailUrl = '';
+            const imgEl = item.querySelector('.p-img img');
+            if (imgEl) {
+                const src = imgEl.dataset.lazyImg || imgEl.src || '';
+                thumbnailUrl = src.startsWith('//') ? 'https:' + src : src;
+            }
+
+            results.push({
+                name: name.substring(0, 100),
+                price: price,
+                product_url: productUrl.substring(0, 500),
+                shop_name: shopName.substring(0, 60),
+                thumbnail_url: thumbnailUrl.substring(0, 300),
+            });
+        } catch(e) {}
+    }
+    return results;
+}"""
 
 
 from src.scraper.platform import register_platform
@@ -47,17 +98,15 @@ class JDScraper:
             viewport={"width": 1920, "height": 1080},
             locale="zh-CN",
         )
-        # Apply stealth
         try:
-            from playwright_stealth import stealth_async
-            await stealth_async(context)
+            from playwright_stealth import Stealth
+            stealth = Stealth(navigator_platform_override="MacIntel")
+            await stealth.apply_stealth_async(context)
         except ImportError:
             logger.warning("playwright-stealth not installed, proceeding without stealth")
 
-        # Load saved cookies if available
         if COOKIE_PATH.exists():
             try:
-                import json
                 cookies = json.loads(COOKIE_PATH.read_text())
                 await context.add_cookies(cookies)
             except Exception:
@@ -71,7 +120,6 @@ class JDScraper:
 
     async def _save_cookies(self, context):
         try:
-            import json
             COOKIE_PATH.parent.mkdir(parents=True, exist_ok=True)
             cookies = await context.cookies()
             COOKIE_PATH.write_text(json.dumps(cookies, ensure_ascii=False))
@@ -79,9 +127,7 @@ class JDScraper:
             logger.warning("Failed to save cookies")
 
     async def search(self, keyword: str, limit: int = 30) -> list[dict]:
-        """Search JD for products by keyword. Returns raw HTML of the search results page."""
-        from src.scraper.parser import parse_product_list
-
+        """Search JD for products by keyword using DOM extraction."""
         context = await self._new_context()
         try:
             page = await context.new_page()
@@ -90,23 +136,21 @@ class JDScraper:
             logger.info(f"Searching JD: {keyword}")
 
             await page.goto(search_url, wait_until="domcontentloaded")
-            await self._random_delay(2.0, 4.0)
+            await self._random_delay(8.0, 12.0)
 
-            # Scroll down to trigger lazy loading
-            for _ in range(3):
+            for _ in range(5):
                 await page.evaluate("window.scrollBy(0, window.innerHeight)")
-                await self._random_delay(1.0, 2.0)
+                await self._random_delay(1.5, 3.0)
 
-            html = await page.content()
-            products = parse_product_list(html)
+            products = await page.evaluate(_JS_EXTRACT_PRODUCTS)
 
             await self._save_cookies(context)
-            logger.info(f"Found {len(products)} products for '{keyword}'")
+            logger.info(f"Found {len(products)} products on JD for '{keyword}'")
 
             return products[:limit]
 
         except Exception as e:
-            logger.error(f"Search failed for '{keyword}': {e}")
+            logger.error(f"JD search failed for '{keyword}': {e}")
             raise
         finally:
             await context.close()
